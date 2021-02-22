@@ -1,4 +1,4 @@
 package demoparser
 package model
 
-case class Demo ()
+case class Demo(header: Header, events: Seq[Event])
