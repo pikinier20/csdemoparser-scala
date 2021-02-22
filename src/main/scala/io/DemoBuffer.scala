@@ -4,7 +4,7 @@ package io
 import com.google.protobuf.CodedInputStream
 import demoparser.io.DemoBuffer.MAX_OSPATH
 
-import java.io.{File, FileInputStream}
+import java.io.{BufferedInputStream, File, FileInputStream}
 import java.nio.{ByteBuffer, ByteOrder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -36,7 +36,10 @@ object DemoBuffer {
 
   def apply(path: Path): DemoBuffer = {
     new DemoBuffer(
-      CodedInputStream.newInstance(Files.newInputStream(path))
+      CodedInputStream.newInstance(
+        Files.readAllBytes(path)
+        //new BufferedInputStream(Files.newInputStream(path))
+      )
     )
   }
 }

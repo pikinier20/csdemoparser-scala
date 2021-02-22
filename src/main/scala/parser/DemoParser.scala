@@ -20,83 +20,41 @@ import java.nio.ByteBuffer
 import java.nio.file.Path
 import scala.Seq
 import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future}
 
 class DemoParser(val buffer: DemoBuffer) {
 
-  def parse(): Either[String, Demo] = {
+  def parse()(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
     val header = parseHeader
-    println(header)
     val ticks = parseContent()
-    ticks.foreach(t => println(t.prettyPrint))
-    ???
+    val ticksF = Future.sequence(ticks)
+    ticksF.map(ticks => Right(Demo(header, ticks)))
   }
   @tailrec
-  private def parseContent(acc: Seq[Tick] = Seq()): Seq[Tick] = {
-    def ignore() = {
+  private def parseContent(
+      acc: Seq[Future[Tick]] = Seq()
+  )(implicit ec: ExecutionContext): Seq[Future[Tick]] = {
+    def ignore(): Future[Seq[Nothing]] = {
       buffer.readIBytes
-      Seq()
+      Future { Seq() }
     }
     val command = Command(buffer.readUInt8)
     val tick = buffer.readInt
     val playerSlot = buffer.readUInt8
     val eventPortion = command match {
-      case Command.Packet | Command.Signon => handleDemoPacket
+      case Command.Packet | Command.Signon => DemoPacketHandler.handle(buffer)
       case Command.DataTables              => ignore()
       case Command.StringTables            => ignore()
       case Command.ConsoleCmd              => ignore()
-      case Command.UserCmd                 => { buffer.readInt; ignore(); }
-      case Command.Stop                    => Seq()
-      case Command.CustomData              => Seq()
-      case Command.SyncTick                => Seq()
+      case Command.UserCmd                 => buffer.readInt; ignore();
+      case Command.Stop                    => Future(Seq())
+      case Command.CustomData              => Future(Seq())
+      case Command.SyncTick                => Future(Seq())
     }
-    val res = Tick(tick, eventPortion)
+    val res = eventPortion.map(Tick(tick, _))
     if (command == Command.Stop) acc
     else
       parseContent(acc :+ res)
-  }
-
-  private def handleDemoPacket: Seq[Event] = {
-    def findMessage(messageValue: Int): Either[String, Message[_]] =
-      NET_Messages.fromValue(messageValue) match {
-        case NET_Messages.Unrecognized(unrecognizedValue) =>
-          SVC_Messages.fromValue(unrecognizedValue) match {
-            case SVC_Messages.Unrecognized(unrecognizedValue2) =>
-              Left(s"Found unrecognized message with value $unrecognizedValue2")
-            case other => Right(SVCMessage(other))
-          }
-        case other => Right(NETMessage(other))
-      }
-    def getMessageHandler(message: Message[_]): Array[Byte] => String =
-      MessageHandler(message)
-    @tailrec
-    def parseChunk(buffer: DemoBuffer, acc: Seq[Event] = Seq()): Seq[Event] = {
-      if (!buffer.hasRemaining) acc
-      else {
-        val command = buffer.readVarint32
-        val size = buffer.readVarint32
-        val msg = findMessage(command) match {
-          case Right(msg) =>
-            Seq(
-              MessageEvent(
-                msg.name,
-                getMessageHandler(msg)(buffer.readBytes(size))
-              )
-            ).filter(m =>
-              m.name == "svc_GameEvent" || m.name == "svc_GameEventList"
-            )
-          case Left(error) =>
-            println(error)
-            Seq()
-        }
-        parseChunk(buffer, acc ++ msg)
-      }
-    }
-
-    buffer.skip(152)
-    buffer.readInt
-    buffer.readInt
-    val chunk = buffer.readIBytes
-    parseChunk(chunk)
   }
 
   private def parseHeader: Header = {
@@ -128,7 +86,9 @@ class DemoParser(val buffer: DemoBuffer) {
 }
 
 object DemoParser {
-  def parseFromPath(path: Path): Either[String, Demo] = {
+  def parseFromPath(
+      path: Path
+  )(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
     val buffer = DemoBuffer(path)
     new DemoParser(buffer).parse()
   }
