@@ -2,17 +2,10 @@ package demoparser
 package parser
 
 import demoparser.io.DemoBuffer
-import demoparser.model.{
-  Command,
-  Demo,
-  Event,
-  Header,
-  Message,
-  MessageEvent,
-  NETMessage,
-  SVCMessage,
-  Tick
-}
+import demoparser.model.{Demo, Header, Message, NETMessage, SVCMessage}
+import demoparser.parser.handlers.DemoPacketHandler
+import demoparser.parser.model.{PBCommand, PBGameEvent, Tick}
+import demoparser.parser.processors.DefaultGameEventsProcessor
 import netmessages.{CNETMsg_SplitScreenUser, NET_Messages, SVC_Messages}
 import netmessages.NET_Messages.Unrecognized
 
@@ -23,36 +16,38 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 class DemoParser(val buffer: DemoBuffer) {
+  val gameEventProcessor = DefaultGameEventsProcessor
 
   def parse()(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
     val header = parseHeader
-    val ticks = parseContent()
-    val ticksF = Future.sequence(ticks)
-    ticksF.map(ticks => Right(Demo(header, ticks)))
+    val events = parseContent()
+    val gameEvents = events.map(gameEventProcessor.process)
+    gameEvents.map(_.map(Demo(header, _)))
   }
   @tailrec
   private def parseContent(
-      acc: Seq[Future[Tick]] = Seq()
-  )(implicit ec: ExecutionContext): Seq[Future[Tick]] = {
+      acc: Seq[Future[Seq[PBGameEvent]]] = Seq()
+  )(implicit ec: ExecutionContext): Future[Seq[PBGameEvent]] = {
     def ignore(): Future[Seq[Nothing]] = {
       buffer.readIBytes
       Future { Seq() }
     }
-    val command = Command(buffer.readUInt8)
+    val command = PBCommand(buffer.readUInt8)
+    println(command)
     val tick = buffer.readInt
-    val playerSlot = buffer.readUInt8
     val eventPortion = command match {
-      case Command.Packet | Command.Signon => DemoPacketHandler.handle(buffer)
-      case Command.DataTables              => ignore()
-      case Command.StringTables            => ignore()
-      case Command.ConsoleCmd              => ignore()
-      case Command.UserCmd                 => buffer.readInt; ignore();
-      case Command.Stop                    => Future(Seq())
-      case Command.CustomData              => Future(Seq())
-      case Command.SyncTick                => Future(Seq())
+      case PBCommand.Packet | PBCommand.Signon =>
+        DemoPacketHandler.handle(tick, buffer)
+      case PBCommand.DataTables   => ignore()
+      case PBCommand.StringTables => ignore()
+      case PBCommand.ConsoleCmd   => ignore()
+      case PBCommand.UserCmd      => buffer.readInt; ignore();
+      case PBCommand.Stop         => Future(Seq())
+      case PBCommand.CustomData   => Future(Seq())
+      case PBCommand.SyncTick     => Future(Seq())
     }
-    val res = eventPortion.map(Tick(tick, _))
-    if (command == Command.Stop) acc
+    val res = eventPortion
+    if (command == PBCommand.Stop) Future.sequence(acc).map(_.flatten)
     else
       parseContent(acc :+ res)
   }

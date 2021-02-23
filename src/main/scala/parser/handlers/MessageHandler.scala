@@ -1,16 +1,18 @@
 package demoparser
-package parser
+package parser.handlers
 
-import demoparser.model.{Message, NETMessage, SVCMessage}
+import model.{Message, NETMessage, SVCMessage}
+import scalapb.GeneratedMessage
+
 import netmessages._
 
 object MessageHandler {
-  def apply(msg: Message[_]): (Array[Byte] => String) =
+  def apply(msg: Message[_]): (Array[Byte] => GeneratedMessage) =
     msg match {
       case SVCMessage(msg) => this(msg)
       case NETMessage(msg) => this(msg)
     }
-  def apply(msg: NET_Messages): (Array[Byte] => String) =
+  def apply(msg: NET_Messages): (Array[Byte] => GeneratedMessage) =
     (array: Array[Byte]) =>
       (msg match {
         case NET_Messages.net_NOP              => CNETMsg_NOP
@@ -26,9 +28,9 @@ object MessageHandler {
           throw new IllegalStateException(
             s"Unrecognized message found $unrecognizedValue"
           )
-      }).parseFrom(array).toString
+      }).parseFrom(array)
 
-  def apply(msg: SVC_Messages): (Array[Byte] => String) =
+  def apply(msg: SVC_Messages): (Array[Byte] => GeneratedMessage) =
     (array: Array[Byte]) =>
       (msg match {
         case SVC_Messages.svc_ServerInfo        => CSVCMsg_ServerInfo
@@ -64,5 +66,5 @@ object MessageHandler {
           throw new IllegalStateException(
             s"Unrecognized message found $unrecognizedValue"
           )
-      }).parseFrom(array).toString
+      }).parseFrom(array)
 }

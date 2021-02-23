@@ -1,8 +1,7 @@
 package demoparser
-package model
+package parser.model
 
-object Command extends Enumeration {
-  import Command._
+object PBCommand extends Enumeration {
   val Signon: Value = Value(1)
   val Packet: Value = Value(2)
   val SyncTick: Value = Value(3)
