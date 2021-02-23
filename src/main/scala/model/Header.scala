@@ -13,4 +13,20 @@ case class Header(
     playbackTicks: Int,
     playbackFrames: Int,
     signonLength: Int
-)
+) extends PrettyPrintable {
+  override def prettyPrint: String =
+    s"""
+      |Header: {
+      |  magic: $magic
+      |  protocol: $protocol
+      |  networkProtocol: $networkProtocol
+      |  serverName: $serverName
+      |  clientName: $clientName
+      |  mapName: $mapName
+      |  gameDirectory: $gameDirectory
+      |  playbackTime: $playbackTime
+      |  playbackTicks: $playbackTicks
+      |  playbackFrames: $playbackFrames
+      |  signonLength: $signonLength
+      |}""".stripMargin
+}

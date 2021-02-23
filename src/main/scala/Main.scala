@@ -13,15 +13,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 
 object Main extends App {
-  val config = ParserConfig(
-    Set(
-      "player_footstep",
-      "player_jump",
-      "item_remove",
-      "item_equip",
-      "item_pickup"
-    )
-  )
+  val config = ParserConfig.Default
   val demo = DemoParser.parseFromPath(
     Paths.get("/home/fzybala/Pobrane/navi-junior-vs-gambit-vertigo.dem"),
     config
@@ -30,5 +22,13 @@ object Main extends App {
   val ps = new PrintStream(fileOS)
   val json =
     demo.map(_.foreach(d => ps.print(JsonDemoSerializer.serialize(d))))
+  val eventStats = demo.map(
+    _.map(
+      _.events.groupMapReduce(_.name)(_ => 1)((acc, next) => acc + next)
+    ).foreach(_.foreach {
+      case (k, v) => println(s"$k: $v")
+    })
+  )
   Await.ready(json, Duration.Inf)
+  Await.ready(eventStats, Duration.Inf)
 }

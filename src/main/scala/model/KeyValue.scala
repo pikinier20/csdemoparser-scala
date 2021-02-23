@@ -1,7 +1,8 @@
 package demoparser
 package model
 
-sealed trait Value[T] {
+sealed trait Value[T] extends PrettyPrintable {
+  override def prettyPrint: String = v.toString
   def v: T
 }
 
