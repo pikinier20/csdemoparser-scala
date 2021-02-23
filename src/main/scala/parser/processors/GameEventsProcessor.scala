@@ -3,17 +3,29 @@ package parser.processors
 
 import parser.model.PBGameEvent
 
-import demoparser.model.GameEvent
+import demoparser.config.ParserConfig
+import demoparser.model.{
+  BooleanValue,
+  FloatValue,
+  GameEvent,
+  IntValue,
+  LongValue,
+  StringValue
+}
 import netmessages.CSVCMsg_GameEvent.key_t
 import netmessages.{CSVCMsg_GameEvent, CSVCMsg_GameEventList}
 
 trait GameEventsProcessor {
-  def process(pbEvents: Seq[PBGameEvent]): Either[String, Seq[GameEvent]]
+  def process(pbEvents: Seq[PBGameEvent])(implicit
+      c: ParserConfig
+  ): Either[String, Seq[GameEvent]]
 }
 
 object DefaultGameEventsProcessor extends GameEventsProcessor {
   override def process(
       pbEvents: Seq[PBGameEvent]
+  )(implicit
+      c: ParserConfig
   ): Either[String, Seq[GameEvent]] = {
     pbEvents
       .map(_.content)
@@ -42,14 +54,14 @@ object DefaultGameEventsProcessor extends GameEventsProcessor {
 
     private def convertValue(value: CSVCMsg_GameEvent.key_t) =
       EventKeyType(value.getType) match {
-        case EventKeyType.String  => value.getValString
-        case EventKeyType.Float   => value.getValFloat
-        case EventKeyType.Long    => value.getValLong
-        case EventKeyType.Short   => value.getValShort
-        case EventKeyType.Byte    => value.getValByte
-        case EventKeyType.Bool    => value.getValBool
-        case EventKeyType.UInt64  => value.getValUint64
-        case EventKeyType.WString => value.getValWstring
+        case EventKeyType.String  => StringValue(value.getValString)
+        case EventKeyType.Float   => FloatValue(value.getValFloat)
+        case EventKeyType.Long    => LongValue(value.getValLong)
+        case EventKeyType.Short   => IntValue(value.getValShort)
+        case EventKeyType.Byte    => IntValue(value.getValByte)
+        case EventKeyType.Bool    => BooleanValue(value.getValBool)
+        case EventKeyType.UInt64  => LongValue(value.getValUint64)
+        case EventKeyType.WString => StringValue(value.getValWstring.toString)
       }
 
     def apply(tick: Int, eventMsg: CSVCMsg_GameEvent): GameEvent = {
@@ -63,13 +75,16 @@ object DefaultGameEventsProcessor extends GameEventsProcessor {
   private def processWithEventList(
       pbEvents: Seq[PBGameEvent],
       list: CSVCMsg_GameEventList
-  ): Either[String, Seq[GameEvent]] = {
-    val gameEventConstructors = list.descriptors.map { desc =>
-      desc.eventid -> new GameEventConstructor(desc)
-    }.toMap
+  )(implicit config: ParserConfig): Either[String, Seq[GameEvent]] = {
+    val gameEventConstructors = list.descriptors
+      .filterNot(d => config.ignoredGameEvents(d.getName))
+      .map { desc =>
+        desc.eventid -> new GameEventConstructor(desc)
+      }
+      .toMap
     Right(pbEvents.collect {
       case PBGameEvent(tick, content: CSVCMsg_GameEvent) =>
-        gameEventConstructors(content.eventid)(tick, content)
-    })
+        gameEventConstructors.get(content.eventid).map(_(tick, content))
+    }.flatten)
   }
 }

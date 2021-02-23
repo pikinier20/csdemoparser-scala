@@ -1,13 +1,13 @@
 package demoparser
 package model
 
-case class GameEvent(name: String, tick: Int, keys: Map[String, Any])
+case class GameEvent(name: String, tick: Int, keys: Map[String, Value[_]])
     extends PrettyPrintable {
   override def prettyPrint: String = {
-    s"""{\n
-          |name: $name
-          |tick: $tick
-          |${keys.map { case (k, v) => s"$k: $v" }.mkString("\n")}
-        }""".stripMargin
+    s"""{
+      |name: $name
+      |tick: $tick
+      |${keys.map { case (k, v) => s"$k: $v" }.mkString("\n")}
+    }""".stripMargin
   }
 }

@@ -1,9 +1,9 @@
 package demoparser
 package parser.handlers
 
-import model.{Message, NETMessage, SVCMessage}
 import scalapb.GeneratedMessage
 
+import demoparser.parser.model.{Message, NETMessage, SVCMessage}
 import netmessages._
 
 object MessageHandler {

@@ -1,9 +1,8 @@
 package demoparser
 package parser.handlers
 
-import io.DemoBuffer
-import model.{Message, NETMessage, SVCMessage}
-import parser.model.PBGameEvent
+import buffer.DemoBuffer
+import parser.model.{Message, NETMessage, PBGameEvent, SVCMessage}
 import scalapb.GeneratedMessage
 
 import netmessages.{NET_Messages, SVC_Messages}

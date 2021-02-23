@@ -1,8 +1,8 @@
 package demoparser
-package io
+package buffer
 
 import com.google.protobuf.CodedInputStream
-import demoparser.io.DemoBuffer.MAX_OSPATH
+import demoparser.buffer.DemoBuffer.MAX_OSPATH
 
 import java.io.{BufferedInputStream, File, FileInputStream}
 import java.nio.{ByteBuffer, ByteOrder}

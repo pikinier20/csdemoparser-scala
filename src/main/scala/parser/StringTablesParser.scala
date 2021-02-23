@@ -1,8 +1,9 @@
 package demoparser
 package parser
 
-import io.DemoBuffer
+import buffer.DemoBuffer
 
+//TODO
 class StringTablesParser {
   def parseStringTables(buffer: DemoBuffer) = {}
 }

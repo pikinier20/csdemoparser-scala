@@ -1,5 +1,5 @@
 package demoparser
-package model
+package parser.model
 
 import netmessages.{NET_Messages, SVC_Messages}
 

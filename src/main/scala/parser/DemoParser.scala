@@ -1,11 +1,15 @@
 package demoparser
 package parser
 
-import demoparser.io.DemoBuffer
-import demoparser.model.{Demo, Header, Message, NETMessage, SVCMessage}
+import demoparser.buffer.DemoBuffer
+import demoparser.config.ParserConfig
+import demoparser.model.{Demo, Header}
 import demoparser.parser.handlers.DemoPacketHandler
-import demoparser.parser.model.{PBCommand, PBGameEvent, Tick}
-import demoparser.parser.processors.DefaultGameEventsProcessor
+import demoparser.parser.model.{PBCommand, PBGameEvent}
+import demoparser.parser.processors.{
+  DefaultGameEventsProcessor,
+  GameEventsProcessor
+}
 import netmessages.{CNETMsg_SplitScreenUser, NET_Messages, SVC_Messages}
 import netmessages.NET_Messages.Unrecognized
 
@@ -15,8 +19,8 @@ import scala.Seq
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
-class DemoParser(val buffer: DemoBuffer) {
-  val gameEventProcessor = DefaultGameEventsProcessor
+class DemoParser(val buffer: DemoBuffer, implicit val config: ParserConfig) {
+  val gameEventProcessor: GameEventsProcessor = DefaultGameEventsProcessor
 
   def parse()(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
     val header = parseHeader
@@ -33,8 +37,8 @@ class DemoParser(val buffer: DemoBuffer) {
       Future { Seq() }
     }
     val command = PBCommand(buffer.readUInt8)
-    println(command)
     val tick = buffer.readInt
+    val playerSlot = buffer.readUInt8
     val eventPortion = command match {
       case PBCommand.Packet | PBCommand.Signon =>
         DemoPacketHandler.handle(tick, buffer)
@@ -82,9 +86,10 @@ class DemoParser(val buffer: DemoBuffer) {
 
 object DemoParser {
   def parseFromPath(
-      path: Path
+      path: Path,
+      config: ParserConfig
   )(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
     val buffer = DemoBuffer(path)
-    new DemoParser(buffer).parse()
+    new DemoParser(buffer, config).parse()
   }
 }
