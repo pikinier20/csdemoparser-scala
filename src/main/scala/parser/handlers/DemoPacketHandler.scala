@@ -14,7 +14,7 @@ object DemoPacketHandler {
   def handle(
       tick: Int,
       buffer: DemoBuffer
-  )(implicit ec: ExecutionContext): Future[Seq[PBGameEvent]] = {
+  )(implicit ec: ExecutionContext): Future[Either[String, Seq[PBGameEvent]]] = {
     buffer.skip(152)
     buffer.readInt
     buffer.readInt
@@ -34,32 +34,33 @@ object DemoPacketHandler {
     }
   private def getMessageHandler(
       message: Message[_]
-  ): Array[Byte] => GeneratedMessage =
+  ): (Array[Byte]) => Either[String, GeneratedMessage] =
     MessageHandler(message)
   @tailrec
   private def parseChunk(
       tick: Int,
       buffer: DemoBuffer,
       acc: Seq[PBGameEvent] = Seq()
-  ): Seq[PBGameEvent] = {
-    if (!buffer.hasRemaining) acc
+  ): Either[String, Seq[PBGameEvent]] = {
+    if (!buffer.hasRemaining) Right(acc)
     else {
       val command = buffer.readVarint32
       val size = buffer.readVarint32
-      val msg = findMessage(command) match {
-        case Right(msg) =>
-          Seq(
-            PBGameEvent(
-              tick,
-              getMessageHandler(msg)(buffer.readBytes(size))
+      val msg = findMessage(command)
+        .flatMap { m =>
+          getMessageHandler(m)(buffer.readBytes(size)).map { msg =>
+            Seq(
+              PBGameEvent(
+                tick,
+                msg
+              )
             )
-          )
-        case Left(error) =>
-          println(error)
-          buffer.readBytes(size)
-          Seq()
+          }
+        }
+      msg match {
+        case Left(value)  => Left(value)
+        case Right(value) => parseChunk(tick, buffer, acc ++ value)
       }
-      parseChunk(tick, buffer, acc ++ msg)
     }
   }
 }

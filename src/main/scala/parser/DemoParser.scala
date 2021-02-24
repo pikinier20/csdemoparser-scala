@@ -22,41 +22,66 @@ import scala.concurrent.{ExecutionContext, Future}
 class DemoParser(val buffer: DemoBuffer, implicit val config: ParserConfig) {
   val gameEventProcessor: GameEventsProcessor = DefaultGameEventsProcessor
 
-  def parse()(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
-    val header = parseHeader
-    val events = parseContent()
-    val gameEvents = events.map(gameEventProcessor.process)
-    gameEvents.map(_.map(Demo(header, _)))
-  }
+  def parse()(implicit ec: ExecutionContext): Future[Either[String, Demo]] =
+    for {
+      header <- Future.successful(parseHeader)
+      events <- parseContent()
+      gameEvents = events.flatMap(gameEventProcessor.process)
+      demo = for {
+        h <- header
+        ge <- gameEvents
+      } yield Demo(h, ge)
+    } yield demo
+
   @tailrec
   private def parseContent(
-      acc: Seq[Future[Seq[PBGameEvent]]] = Seq()
-  )(implicit ec: ExecutionContext): Future[Seq[PBGameEvent]] = {
-    def ignore(): Future[Seq[Nothing]] = {
+      acc: Future[Seq[PBGameEvent]] = Future.successful(Seq())
+  )(implicit ec: ExecutionContext): Future[Either[String, Seq[PBGameEvent]]] = {
+    def ignore(): Future[Either[String, Seq[Nothing]]] = {
       buffer.readIBytes
-      Future { Seq() }
+      Future.successful(Right(Seq()))
     }
-    val command = PBCommand(buffer.readUInt8)
+    def empty(): Future[Either[String, Seq[Nothing]]] =
+      Future.successful(Right(Seq()))
+    val cNo = buffer.readUInt8
     val tick = buffer.readInt
     val playerSlot = buffer.readUInt8
-    val eventPortion = command match {
-      case PBCommand.Packet | PBCommand.Signon =>
-        DemoPacketHandler.handle(tick, buffer)
-      case PBCommand.DataTables   => ignore()
-      case PBCommand.StringTables => ignore()
-      case PBCommand.ConsoleCmd   => ignore()
-      case PBCommand.UserCmd      => buffer.readInt; ignore();
-      case PBCommand.Stop         => Future(Seq())
-      case PBCommand.CustomData   => Future(Seq())
-      case PBCommand.SyncTick     => Future(Seq())
+    PBCommand.commandOption(cNo) match {
+      case Some(command) =>
+        if (command == PBCommand.Stop) {
+          acc.map(Right(_))
+        } else {
+          val eventPortion = command match {
+            case PBCommand.Packet | PBCommand.Signon =>
+              DemoPacketHandler.handle(tick, buffer)
+            case PBCommand.DataTables   => ignore()
+            case PBCommand.StringTables => ignore()
+            case PBCommand.ConsoleCmd   => ignore()
+            case PBCommand.UserCmd      => buffer.readInt; ignore();
+            case PBCommand.Stop         => empty()
+            case PBCommand.CustomData   => empty()
+            case PBCommand.SyncTick     => empty()
+          }
+          val temp = eventPortion.map(
+            _.fold(
+              s => {
+                println(s"Error on handler for command $command: $s")
+                Seq()
+              },
+              s => s
+            )
+          )
+          parseContent(
+            acc.flatMap(ac => temp.map(_ ++ ac))
+          )
+        }
+
+      case None => Future.successful(Left(s"Undefined command: $cNo"))
     }
-    val res = eventPortion
-    if (command == PBCommand.Stop) Future.sequence(acc).map(_.flatten)
-    else
-      parseContent(acc :+ res)
+
   }
 
-  private def parseHeader: Header = {
+  private def parseHeader: Either[String, Header] = {
     val magic = buffer.readString(8)
     val protocol = buffer.readInt
     val networkProtocol = buffer.readInt
@@ -68,19 +93,24 @@ class DemoParser(val buffer: DemoBuffer, implicit val config: ParserConfig) {
     val playbackTicks = buffer.readInt
     val playbackFrames = buffer.readInt
     val signonLength = buffer.readInt
-    Header(
-      magic,
-      protocol,
-      networkProtocol,
-      serverName,
-      clientName,
-      mapName,
-      gameDirectory,
-      playbackTime,
-      playbackTicks,
-      playbackFrames,
-      signonLength
-    )
+    if (magic != "HL2DEMO")
+      Left("Processed file is not correct CS:GO demo. Wrong magic number")
+    else
+      Right(
+        Header(
+          magic,
+          protocol,
+          networkProtocol,
+          serverName,
+          clientName,
+          mapName,
+          gameDirectory,
+          playbackTime,
+          playbackTicks,
+          playbackFrames,
+          signonLength
+        )
+      )
   }
 }
 

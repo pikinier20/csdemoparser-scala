@@ -37,8 +37,7 @@ object DemoBuffer {
   def apply(path: Path): DemoBuffer = {
     new DemoBuffer(
       CodedInputStream.newInstance(
-        Files.readAllBytes(path)
-        //new BufferedInputStream(Files.newInputStream(path))
+        new BufferedInputStream(Files.newInputStream(path))
       )
     )
   }

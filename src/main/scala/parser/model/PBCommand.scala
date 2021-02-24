@@ -11,4 +11,7 @@ object PBCommand extends Enumeration {
   val Stop: Value = Value(7)
   val CustomData: Value = Value(8)
   val StringTables: Value = Value(9)
+
+  def commandOption(int: Int): Option[PBCommand.Value] =
+    if (int >= 1 && int <= 9) Some(PBCommand(int)) else None
 }
