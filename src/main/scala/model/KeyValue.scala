@@ -1,7 +1,9 @@
 package demoparser
 package model
 
-sealed trait Value[T] extends PrettyPrintable {
+import interfaces.ValueInterface
+
+sealed trait Value[T] extends PrettyPrintable with ValueInterface[T] {
   override def prettyPrint: String = v.toString
   def v: T
 }

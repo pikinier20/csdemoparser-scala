@@ -1,8 +1,13 @@
 package demoparser
 package parser
 
-import demoparser.buffer.DemoBuffer
-import demoparser.config.ParserConfig
+import demoparser.buffer.{DefaultDemoBuffer, DemoBuffer}
+import demoparser.config.{ParserConfig, ParserConfigInterface}
+import demoparser.interfaces.{
+  DemoInterface,
+  DemoParserInterface,
+  DemoParsingException
+}
 import demoparser.model.{Demo, Header}
 import demoparser.parser.handlers.DemoPacketHandler
 import demoparser.parser.model.{PBCommand, PBGameEvent}
@@ -13,19 +18,30 @@ import demoparser.parser.processors.{
 import netmessages.{CNETMsg_SplitScreenUser, NET_Messages, SVC_Messages}
 import netmessages.NET_Messages.Unrecognized
 
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.file.Path
+import java.util
+import java.util.concurrent.ExecutorService
 import scala.Seq
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{
+  ExecutionContext,
+  ExecutionContextExecutorService,
+  Future
+}
 
-class DemoParser(val buffer: DemoBuffer, implicit val config: ParserConfig) {
+class DemoParser(
+    val buffer: DemoBuffer,
+    implicit val config: ParserConfigInterface
+) {
   val gameEventProcessor: GameEventsProcessor = DefaultGameEventsProcessor
 
   def parse()(implicit ec: ExecutionContext): Future[Either[String, Demo]] =
     for {
       header <- Future.successful(parseHeader)
-      events <- parseContent()
+      events <-
+        if (header.isRight) parseContent() else Future.successful(Right(Seq()))
       gameEvents = events.flatMap(gameEventProcessor.process)
       demo = for {
         h <- header
@@ -114,12 +130,58 @@ class DemoParser(val buffer: DemoBuffer, implicit val config: ParserConfig) {
   }
 }
 
-object DemoParser {
+object DemoParser extends DemoParserInterface {
   def parseFromPath(
       path: Path,
-      config: ParserConfig
+      config: ParserConfigInterface
   )(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
-    val buffer = DemoBuffer(path)
+    val buffer = DefaultDemoBuffer(path)
     new DemoParser(buffer, config).parse()
+  }
+
+  def parseFromInputStream(
+      inputStream: InputStream,
+      config: ParserConfigInterface
+  )(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
+    val buffer = DefaultDemoBuffer(inputStream)
+    new DemoParser(buffer, config).parse()
+  }
+
+  override def parseFromPath(
+      path: Path,
+      config: ParserConfigInterface,
+      exService: ExecutorService
+  ): util.concurrent.Future[DemoInterface] = {
+    import scala.jdk.FutureConverters._
+    implicit val ctx: ExecutionContext =
+      ExecutionContext.fromExecutorService(exService)
+    parseFromPath(path, config)
+      .map(e =>
+        e.fold[DemoInterface](
+          s => throw new DemoParsingException(s),
+          d => d
+        )
+      )
+      .asJava
+      .toCompletableFuture
+  }
+
+  override def parseFromInputStream(
+      input: InputStream,
+      config: ParserConfigInterface,
+      exService: ExecutorService
+  ): util.concurrent.Future[DemoInterface] = {
+    import scala.jdk.FutureConverters._
+    implicit val ctx: ExecutionContext =
+      ExecutionContext.fromExecutorService(exService)
+    parseFromInputStream(input, config)
+      .map(e =>
+        e.fold[DemoInterface](
+          s => throw new DemoParsingException(s),
+          d => d
+        )
+      )
+      .asJava
+      .toCompletableFuture
   }
 }

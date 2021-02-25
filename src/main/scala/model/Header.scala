@@ -1,6 +1,8 @@
 package demoparser
 package model
 
+import interfaces.HeaderInterface
+
 case class Header(
     magic: String,
     protocol: Int,
@@ -13,7 +15,8 @@ case class Header(
     playbackTicks: Int,
     playbackFrames: Int,
     signonLength: Int
-) extends PrettyPrintable {
+) extends PrettyPrintable
+    with HeaderInterface {
   override def prettyPrint: String =
     s"""
       |Header: {

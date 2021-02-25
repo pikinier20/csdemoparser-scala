@@ -9,6 +9,7 @@
       <sourceFolder url="file://$MODULE_DIR$/../../src/main/scala" isTestSource="false" packagePrefix="demoparser" />
       <sourceFolder url="file://$MODULE_DIR$/../../src/test/scala" isTestSource="true" packagePrefix="demoparser" />
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.13/src_managed/main" isTestSource="false" packagePrefix="demoparser" generated="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../../src/main/java" isTestSource="false" packagePrefix="demoparser" />
       <excludeFolder url="file://$MODULE_DIR$/../../target" />
       <excludeFolder url="file://$MODULE_DIR$/../../target/global-logging" />
       <excludeFolder url="file://$MODULE_DIR$/../../target/streams" />

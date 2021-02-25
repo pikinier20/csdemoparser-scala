@@ -1,7 +1,20 @@
 package demoparser
 package config
 
+import scala.collection.JavaConverters._
+
+trait ParserConfigInterface {
+  def ignoredGameEvents: Set[String]
+}
+
 case class ParserConfig(ignoredGameEvents: Set[String])
+    extends ParserConfigInterface
+
+class JavaParserConfig(_ignoredGameEvents: java.util.Set[String])
+    extends ParserConfigInterface {
+  override def ignoredGameEvents: Set[String] =
+    _ignoredGameEvents.asScala.toSet
+}
 
 object ParserConfig {
   val Default: ParserConfig = ParserConfig(

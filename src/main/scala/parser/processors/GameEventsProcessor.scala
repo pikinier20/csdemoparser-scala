@@ -3,7 +3,7 @@ package parser.processors
 
 import parser.model.PBGameEvent
 
-import demoparser.config.ParserConfig
+import demoparser.config.{ParserConfig, ParserConfigInterface}
 import demoparser.model.{
   BooleanValue,
   FloatValue,
@@ -17,7 +17,7 @@ import netmessages.{CSVCMsg_GameEvent, CSVCMsg_GameEventList}
 
 trait GameEventsProcessor {
   def process(pbEvents: Seq[PBGameEvent])(implicit
-      c: ParserConfig
+      c: ParserConfigInterface
   ): Either[String, Seq[GameEvent]]
 }
 
@@ -25,7 +25,7 @@ object DefaultGameEventsProcessor extends GameEventsProcessor {
   override def process(
       pbEvents: Seq[PBGameEvent]
   )(implicit
-      c: ParserConfig
+      c: ParserConfigInterface
   ): Either[String, Seq[GameEvent]] = {
     pbEvents
       .map(_.content)
@@ -75,7 +75,7 @@ object DefaultGameEventsProcessor extends GameEventsProcessor {
   private def processWithEventList(
       pbEvents: Seq[PBGameEvent],
       list: CSVCMsg_GameEventList
-  )(implicit config: ParserConfig): Either[String, Seq[GameEvent]] = {
+  )(implicit config: ParserConfigInterface): Either[String, Seq[GameEvent]] = {
     val gameEventConstructors = list.descriptors
       .filterNot(d => config.ignoredGameEvents(d.getName))
       .map { desc =>
