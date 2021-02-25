@@ -3,6 +3,8 @@ package model
 
 import interfaces.HeaderInterface
 
+import demoparser.serialization.JsonDemoSerializer
+
 case class Header(
     magic: String,
     protocol: Int,
@@ -15,8 +17,7 @@ case class Header(
     playbackTicks: Int,
     playbackFrames: Int,
     signonLength: Int
-) extends PrettyPrintable
-    with HeaderInterface {
+) extends HeaderInterface {
   override def prettyPrint: String =
     s"""
       |Header: {
@@ -32,4 +33,9 @@ case class Header(
       |  playbackFrames: $playbackFrames
       |  signonLength: $signonLength
       |}""".stripMargin
+
+  override def toJson: String = {
+    import io.circe.generic.auto._
+    JsonDemoSerializer.serializeIfPossible(this)
+  }
 }

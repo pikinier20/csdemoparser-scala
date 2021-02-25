@@ -3,9 +3,17 @@ package model
 
 import interfaces.ValueInterface
 
-sealed trait Value[T] extends PrettyPrintable with ValueInterface[T] {
+import demoparser.serialization.JsonDemoSerializer
+
+sealed trait Value[T] extends ValueInterface[T] {
   override def prettyPrint: String = v.toString
   def v: T
+
+  override def toJson: String = {
+    import io.circe.generic.auto._
+    import JsonDemoSerializer.valueSerializer
+    JsonDemoSerializer.serializeIfPossible(this)
+  }
 }
 
 case class StringValue(v: String) extends Value[String]

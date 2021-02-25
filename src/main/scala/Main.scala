@@ -3,7 +3,6 @@ package demoparser
 import parser.DemoParser
 
 import demoparser.config.ParserConfig
-import demoparser.serialization.JsonDemoSerializer
 
 import java.io.{File, FileOutputStream, PrintStream}
 import java.nio.file.{Files, Paths}
@@ -22,7 +21,7 @@ object Main extends App {
   val ps = new PrintStream(fileOS)
   val json =
     demo.map(
-      _.fold(s => println(s), d => ps.print(JsonDemoSerializer.serialize(d)))
+      _.fold(s => println(s), d => ps.print(d.toJson))
     )
   val eventStats = demo.map(
     _.map(

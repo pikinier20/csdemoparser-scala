@@ -1,6 +1,6 @@
 package demoparser.interfaces;
 
-public interface HeaderInterface {
+public interface HeaderInterface extends PrettyPrintable, JsonSerializable {
     String magic();
     int protocol();
     int networkProtocol();

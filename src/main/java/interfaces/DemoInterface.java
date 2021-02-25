@@ -4,7 +4,7 @@ import demoparser.model.Header;
 
 import java.util.List;
 
-public interface DemoInterface {
+public interface DemoInterface extends PrettyPrintable, JsonSerializable {
     HeaderInterface header();
     List<GameEventInterface> eventsList();
 }
