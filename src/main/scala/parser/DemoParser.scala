@@ -1,6 +1,7 @@
 package demoparser
 package parser
 
+import com.google.protobuf.InvalidProtocolBufferException
 import demoparser.buffer.{DefaultDemoBuffer, DemoBuffer}
 import demoparser.config.{ParserConfig, ParserConfigInterface}
 import demoparser.interfaces.{
@@ -25,11 +26,13 @@ import java.util
 import java.util.concurrent.ExecutorService
 import scala.Seq
 import scala.annotation.tailrec
+import scala.concurrent.impl.Promise
 import scala.concurrent.{
   ExecutionContext,
   ExecutionContextExecutorService,
   Future
 }
+import scala.util.{Failure, Success, Try}
 
 class DemoParser(
     val buffer: DemoBuffer,
@@ -67,31 +70,39 @@ class DemoParser(
         if (command == PBCommand.Stop) {
           acc.map(Right(_))
         } else {
-          val eventPortion = command match {
-            case PBCommand.Packet | PBCommand.Signon =>
-              DemoPacketHandler.handle(tick, buffer)
-            case PBCommand.DataTables   => ignore()
-            case PBCommand.StringTables => ignore()
-            case PBCommand.ConsoleCmd   => ignore()
-            case PBCommand.UserCmd      => buffer.readInt; ignore();
-            case PBCommand.Stop         => empty()
-            case PBCommand.CustomData   => empty()
-            case PBCommand.SyncTick     => empty()
+          val eventPortion =
+            Try(command match {
+              case PBCommand.Packet | PBCommand.Signon =>
+                DemoPacketHandler.handle(tick, buffer)
+              case PBCommand.DataTables   => ignore()
+              case PBCommand.StringTables => ignore()
+              case PBCommand.ConsoleCmd   => ignore()
+              case PBCommand.UserCmd      => buffer.readInt; ignore();
+              case PBCommand.Stop         => empty()
+              case PBCommand.CustomData   => empty()
+              case PBCommand.SyncTick     => empty()
+            })
+          eventPortion match {
+            case Failure(exception: InvalidProtocolBufferException) =>
+              println(
+                s"Got exception on parsing next chunk: $exception. Returning current result"
+              )
+              acc.map(Right(_))
+            case Success(value) =>
+              val temp = value.map(
+                _.fold(
+                  s => {
+                    println(s"Error on handler for command $command: $s")
+                    Seq()
+                  },
+                  s => s
+                )
+              )
+              parseContent(
+                acc.flatMap(ac => temp.map(_ ++ ac))
+              )
           }
-          val temp = eventPortion.map(
-            _.fold(
-              s => {
-                println(s"Error on handler for command $command: $s")
-                Seq()
-              },
-              s => s
-            )
-          )
-          parseContent(
-            acc.flatMap(ac => temp.map(_ ++ ac))
-          )
         }
-
       case None => Future.successful(Left(s"Undefined command: $cNo"))
     }
 

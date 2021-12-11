@@ -50,6 +50,5 @@ Please make sure to update tests as appropriate.
 ## Credits
 Parsing algorithm used in this project was taken from [demofile](https://github.com/saul/demofile).
 
-
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
