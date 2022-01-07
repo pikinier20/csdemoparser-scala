@@ -1,5 +1,7 @@
 name := "CSDemoParser"
 
+organization := "org.pikinier20"
+
 version := "0.1"
 
 scalaVersion := "2.13.4"
@@ -32,5 +34,6 @@ Compile / PB.protoSources := Seq(
 )
 
 Compile / PB.includePaths := Seq(
-  new File("src/main/protobuf")
+  new File("src/main/protobuf"),
+  new File("/usr/local/include")
 )

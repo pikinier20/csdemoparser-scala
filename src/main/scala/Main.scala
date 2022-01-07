@@ -15,22 +15,18 @@ import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 object Main extends App {
   val config = ParserConfig.Default
   val demo = DemoParser.parseFromPath(
-    Paths.get("/home/fzybala/Pobrane/navi-junior-vs-gambit-vertigo.dem"),
+    Paths.get("./nlg-vs-ttc-m1-mirage.dem"),
     config
   )
   val fileOS = Files.newOutputStream(Files.createFile(Paths.get("./demo.json")))
   val ps = new PrintStream(fileOS)
   val json =
-    demo.map(
-      _.fold(s => println(s), d => ps.print(JsonDemoSerializer.serialize(d)))
+    demo.fold(s => println(s), d => ps.print(JsonDemoSerializer.serialize(d))
     )
   val eventStats = demo.map(
-    _.map(
       _.events.groupMapReduce(_.name)(_ => 1)((acc, next) => acc + next)
     ).foreach(_.foreach {
       case (k, v) => println(s"$k: $v")
-    })
+    }
   )
-  Await.ready(json, Duration.Inf)
-  Await.ready(eventStats, Duration.Inf)
 }

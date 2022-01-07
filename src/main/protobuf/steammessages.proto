@@ -409,6 +409,7 @@ message CMsgGCMsgMasterSetDirectory {
 
 message CMsgGCMsgMasterSetDirectory_Response {
 	optional int32 eresult = 1 [default = 2];
+	optional string message = 2;
 }
 
 message CMsgGCMsgWebAPIJobRequestForwardResponse {
@@ -592,6 +593,7 @@ message CMsgDPPartnerMicroTxnsResponse {
 message CChinaAgreementSessions_StartAgreementSessionInGame_Request {
 	optional uint32 appid = 1;
 	optional fixed64 steamid = 2;
+	optional string client_ipaddress = 3;
 }
 
 message CChinaAgreementSessions_StartAgreementSessionInGame_Response {

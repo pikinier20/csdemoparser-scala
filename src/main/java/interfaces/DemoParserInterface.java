@@ -8,8 +8,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 public interface DemoParserInterface {
-    Future<DemoInterface> parseFromPath(Path path, ParserConfigInterface config, ExecutorService exService);
-    Future<DemoInterface> parseFromInputStream(InputStream input, ParserConfigInterface config, ExecutorService exService);
+    DemoInterface parseFromPathJ(Path path, ParserConfigInterface config);
+    DemoInterface parseFromInputStreamJ(InputStream input, ParserConfigInterface config);
 }
 
 

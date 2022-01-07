@@ -16,6 +16,14 @@ object JsonDemoSerializer {
     case IntValue(v)     => v.asJson
   }
 
+  def serializeWithMetadata(demo: Demo, date: Long, id: String, title: String): String =
+    demo.asJsonObject
+      .add("date", date.asJson)
+      .add("id", id.asJson)
+      .add("title", title.asJson)
+      .asJson
+      .toString()
+
   def serialize(demo: Demo): String = demo.asJson.toString()
 
   def serialize(header: Header): String = header.asJson.toString()

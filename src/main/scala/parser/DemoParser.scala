@@ -40,35 +40,30 @@ class DemoParser(
 ) {
   val gameEventProcessor: GameEventsProcessor = DefaultGameEventsProcessor
 
-  def parse()(implicit ec: ExecutionContext): Future[Either[String, Demo]] =
+  def parse(): Either[String, Demo] =
     for {
-      header <- Future.successful(parseHeader)
-      events <-
-        if (header.isRight) parseContent() else Future.successful(Right(Seq()))
-      gameEvents = events.flatMap(gameEventProcessor.process)
-      demo = for {
-        h <- header
-        ge <- gameEvents
-      } yield Demo(h, ge)
-    } yield demo
+      header <- parseHeader
+      events <- parseContent()
+      gameEvents <- gameEventProcessor.process(events)
+    } yield Demo(header, gameEvents)
 
   @tailrec
   private def parseContent(
-      acc: Future[Seq[PBGameEvent]] = Future.successful(Seq())
-  )(implicit ec: ExecutionContext): Future[Either[String, Seq[PBGameEvent]]] = {
-    def ignore(): Future[Either[String, Seq[Nothing]]] = {
+      acc: Seq[PBGameEvent] = Seq()
+  ): Either[String, Seq[PBGameEvent]] = {
+    def ignore(): Either[String, Seq[Nothing]] = {
       buffer.readIBytes
-      Future.successful(Right(Seq()))
+      Right(Seq())
     }
-    def empty(): Future[Either[String, Seq[Nothing]]] =
-      Future.successful(Right(Seq()))
+    def empty(): Either[String, Seq[Nothing]] =
+      Right(Seq())
     val cNo = buffer.readUInt8
     val tick = buffer.readInt
     val playerSlot = buffer.readUInt8
     PBCommand.commandOption(cNo) match {
       case Some(command) =>
         if (command == PBCommand.Stop) {
-          acc.map(Right(_))
+          Right(acc)
         } else {
           val eventPortion =
             Try(command match {
@@ -87,23 +82,21 @@ class DemoParser(
               println(
                 s"Got exception on parsing next chunk: $exception. Returning current result"
               )
-              acc.map(Right(_))
+              Right(acc)
             case Success(value) =>
-              val temp = value.map(
-                _.fold(
+              val temp = value.fold(
                   s => {
                     println(s"Error on handler for command $command: $s")
                     Seq()
                   },
                   s => s
                 )
-              )
               parseContent(
-                acc.flatMap(ac => temp.map(_ ++ ac))
+                temp ++ acc
               )
           }
         }
-      case None => Future.successful(Left(s"Undefined command: $cNo"))
+      case None => Left(s"Undefined command: $cNo")
     }
 
   }
@@ -145,7 +138,7 @@ object DemoParser extends DemoParserInterface {
   def parseFromPath(
       path: Path,
       config: ParserConfigInterface
-  )(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
+  ): Either[String, Demo] = {
     val buffer = DefaultDemoBuffer(path)
     new DemoParser(buffer, config).parse()
   }
@@ -153,46 +146,30 @@ object DemoParser extends DemoParserInterface {
   def parseFromInputStream(
       inputStream: InputStream,
       config: ParserConfigInterface
-  )(implicit ec: ExecutionContext): Future[Either[String, Demo]] = {
+  ): Either[String, Demo] = {
     val buffer = DefaultDemoBuffer(inputStream)
     new DemoParser(buffer, config).parse()
   }
 
-  override def parseFromPath(
+  override def parseFromPathJ(
       path: Path,
-      config: ParserConfigInterface,
-      exService: ExecutorService
-  ): util.concurrent.Future[DemoInterface] = {
-    import scala.jdk.FutureConverters._
-    implicit val ctx: ExecutionContext =
-      ExecutionContext.fromExecutorService(exService)
+      config: ParserConfigInterface
+  ): DemoInterface = {
     parseFromPath(path, config)
-      .map(e =>
-        e.fold[DemoInterface](
+      .fold[DemoInterface](
           s => throw new DemoParsingException(s),
           d => d
-        )
       )
-      .asJava
-      .toCompletableFuture
   }
 
-  override def parseFromInputStream(
+  override def parseFromInputStreamJ(
       input: InputStream,
-      config: ParserConfigInterface,
-      exService: ExecutorService
-  ): util.concurrent.Future[DemoInterface] = {
-    import scala.jdk.FutureConverters._
-    implicit val ctx: ExecutionContext =
-      ExecutionContext.fromExecutorService(exService)
+      config: ParserConfigInterface
+  ): DemoInterface = {
     parseFromInputStream(input, config)
-      .map(e =>
-        e.fold[DemoInterface](
+      .fold[DemoInterface](
           s => throw new DemoParsingException(s),
           d => d
-        )
       )
-      .asJava
-      .toCompletableFuture
   }
 }

@@ -8,18 +8,17 @@ import scalapb.GeneratedMessage
 import netmessages.{NET_Messages, SVC_Messages}
 
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future}
 
 object DemoPacketHandler {
   def handle(
       tick: Int,
       buffer: DemoBuffer
-  )(implicit ec: ExecutionContext): Future[Either[String, Seq[PBGameEvent]]] = {
+  ): Either[String, Seq[PBGameEvent]] = {
     buffer.skip(152)
     buffer.readInt
     buffer.readInt
     val chunk = buffer.readIBytes
-    Future { parseChunk(tick, chunk) }
+    parseChunk(tick, chunk)
   }
 
   private def findMessage(messageValue: Int): Either[String, Message[_]] =
